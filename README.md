@@ -1,4 +1,4 @@
-# Dijkstra's-Path-Finding
+# Dijkstra's Path Finding
 
 Little javascript that dynamically solves mazes of custom sizes.
 ![MazeExample](MazeExample.png)
