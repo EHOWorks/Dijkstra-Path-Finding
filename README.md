@@ -5,7 +5,8 @@ Little javascript that dynamically solves mazes of custom sizes.
 
 Features : 
 - Length/Width Selection
-- Can display the logic of the algorithm 
+- Displays the nodes visited for a better visualisation of the algorithm
+![Logic](Logic.png)
 - Displays the cost table for all iterations
 ![CostTable](CostTable.png)
 
