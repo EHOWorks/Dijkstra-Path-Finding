@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style>
+		table{
+			padding:4px;
+			border-collapse:collapse;
+		}
+		td{
+			height:30px;
+			width:40px;
+		}
+	</style>
+</head>
+
+<body>
+
+<center>
+<h1>Dynamic Path Finding W/ Dijkstra</h1>
+<h2>By El Hanchi Othmane</h2>
+
+	<pre id="horiz" style="display:none;font-size:0.5em"></pre>
+	<pre id="vert" style="display:none;position:absolute;margin-top:-85px;margin-left:80px;font-size:0.5em"></pre>
+	<pre id="s" style="display:none;position:absolute;margin-top:-85px;margin-left:150px;font-size:0.5em"></pre>
+	<pre id="out" style="display:none"></pre>
+	<button onclick="showDijkstra(mazeGenerated.x,mazeGenerated.y,maze,paths);">Comprendre l'Algorithme</button>
+	<button onclick="showPath(paths.path)">Resoudre le Labyrinthe</button>
+	<button onclick="showCost(paths.costTable)">Tables des Couts</button>
+	<button onclick="Reset()">Reset</button>
+	<div id="cout"></div>
+</center>
+</body>
+
+<script type="text/javascript">
+
+	function maze(x,y) {
+
+		var n=x*y-1; 
+		if (n<0) {alert("illegal maze dimensions");return;}
+
+		var horiz =[]; for (var j= 0; j<x+1; j++) horiz[j]= [],
+		    verti =[]; for (var j= 0; j<x+1; j++) verti[j]= [],
+		    here = [Math.floor(Math.random()*x), Math.floor(Math.random()*y)],
+		    path = [here],
+
+		    unvisited = [];
+		for (var j = 0; j<x+2; j++) {
+			unvisited[j] = [];
+			for (var k= 0; k<y+1; k++)
+				unvisited[j].push(j>0 && j<x+1 && k>0 && (j != here[0]+1 || k != here[1]+1));
+		}
+
+		while (0<n) {
+			var potential = [[here[0]+1, here[1]], [here[0],here[1]+1],
+			    [here[0]-1, here[1]], [here[0],here[1]-1]];
+			var neighbors = [];
+			for (var j = 0; j < 4; j++)
+				if (unvisited[potential[j][0]+1][potential[j][1]+1])  // Si la cellule à droite en haut de la position ou on desire aller est deja visitée on ne VA PAS au potential !
+					neighbors.push(potential[j]);
+			if (neighbors.length) {
+				n = n-1;
+				next= neighbors[Math.floor(Math.random()*neighbors.length)]; // Next = Un neighbor choisi aléatoirement
+				unvisited[next[0]+1][next[1]+1]= false; // La cellule à droite en haut du neighbor choisi (next) est définie commme visitée (Condition <-> Celle actuelle visitée)
+				if (next[0] == here[0])
+					horiz[next[0]][(next[1]+here[1]-1)/2]= true;
+				else // if (next[1]==here[1]) 
+					verti[(next[0]+here[0]-1)/2][next[1]]= true;
+				path.push(here = next);
+			} else 
+				here = path.pop();
+		}
+
+		document.getElementById('horiz').innerHTML+='Tableau Horiz <br>';
+		for(var i=0;i<horiz.length;i++){
+			for(var j=0;j<y;j++){
+				if(horiz[i][j]==true)
+					document.getElementById('horiz').innerHTML+='1';
+				else
+					document.getElementById('horiz').innerHTML+='0';
+			}
+			document.getElementById('horiz').innerHTML+='<br>';
+		}
+
+		document.getElementById('vert').innerHTML+='Tableau Verti <br>';
+		for(var i=0;i<verti.length;i++){
+			for(var j=0;j<y;j++){
+				if(verti[i][j]==true)
+					document.getElementById('vert').innerHTML+='1';
+				else
+					document.getElementById('vert').innerHTML+='0';
+			}
+			document.getElementById('vert').innerHTML+='<br>';
+		}
+
+		return {x: x, y: y, horiz: horiz, verti: verti};
+	}
+
+	function display(m) {
+
+		var text= [],
+			graph=[],
+			s=[],
+			i=0;	
+
+		for (var j= 0; j<m.x*2+1; j++) {
+			var line= [];
+			if (0 == j%2)
+				for (var k=0; k<m.y*4+1; k++)
+					if (0 == k%4) 
+						line[k]= '+';
+					else
+						if (j>0 && m.verti[j/2-1][Math.floor(k/4)])
+							line[k]= ' ';
+						else
+							line[k]= '-';
+			else
+				for (var k=0; k<m.y*4+1; k++){
+
+					if (0 == k%4)
+						if (k>0 && m.horiz[(j-1)/2][k/4-1])
+							line[k]= ' ';
+						else
+							line[k]= '|';
+					else
+						line[k]= ' ';
+
+					//Gestion des Intersections
+
+					if( k%2==0 &&( (j>0 && m.verti[(j+1)/2-1][Math.floor(k/4)] && k>0 && m.horiz[(j-1)/2][(k+2)/4-1]) || (j>0 && m.verti[(j+1)/2-1][Math.floor(k/4)] && k>0 && m.horiz[(j-1)/2][(k-2)/4-1]) || (j>1 && m.verti[(j-1)/2-1][Math.floor(k/4)] && k>0 && m.horiz[(j-1)/2][(k-2)/4-1])  || (j>1 && m.verti[(j-1)/2-1][Math.floor(k/4)] && k>0 && m.horiz[(j-1)/2][(k+2)/4-1]) ) ){
+						line[k]='s';
+						s[i]=[j,k];
+						i++;
+					}
+						
+
+					// Gestion des Impasses
+
+					if( j>1 && !m.verti[Math.floor((j+1)/2)-1][Math.floor(k/4)] && k>0 && !m.horiz[(j-1)/2][(k+2)/4-1] && !m.verti[Math.floor((j-1)/2)-1][Math.floor(k/4)] && m.horiz[(j-1)/2][(k-2)/4-1]){ 
+							line[k]='s';
+							s[i]=[j,k];i++;
+					}
+					if (j==1 && !m.verti[Math.floor((j+1)/2)-1][Math.floor(k/4)] && k>0 && !m.horiz[(j-1)/2][(k+2)/4-1] && m.horiz[(j-1)/2][(k-2)/4-1] ){
+							line[k]='s';
+							s[i]=[j,k];i++;
+					}
+					if( j>1 && !m.verti[Math.floor((j+1)/2)-1][Math.floor(k/4)] && k>0 && m.horiz[(j-1)/2][(k+2)/4-1] && !m.verti[Math.floor((j-1)/2)-1][Math.floor(k/4)] && !m.horiz[(j-1)/2][(k-2)/4-1]){ 
+							line[k]='s';
+							s[i]=[j,k];i++;
+					}
+					if (j==1 && !m.verti[Math.floor((j+1)/2)-1][Math.floor(k/4)] && k>0 && !m.horiz[(j-1)/2][(k-2)/4-1] && m.horiz[(j-1)/2][(k+2)/4-1] ){
+							line[k]='s';
+							s[i]=[j,k];i++;
+					}
+
+					// Impasses Verticales
+
+					if( k%2==0 && k%4!=0 && j>1 && !m.verti[Math.floor((j+1)/2)-1][Math.floor(k/4)] && k>0 && !m.horiz[(j-1)/2][(k+2)/4-1] && m.verti[Math.floor((j-1)/2)-1][Math.floor(k/4)] && !m.horiz[(j-1)/2][(k-2)/4-1]){
+							line[k]='s';
+							s[i]=[j,k];i++;
+						}
+
+					if( k%2==0 && k%4!=0 && j>1 && m.verti[Math.floor((j+1)/2)-1][Math.floor(k/4)] && k>0 && !m.horiz[(j-1)/2][(k+2)/4-1] && !m.verti[Math.floor((j-1)/2)-1][Math.floor(k/4)] && !m.horiz[(j-1)/2][(k-2)/4-1]){
+							line[k]='s';
+							s[i]=[j,k];i++;
+						}
+
+					//Gestion des 4 Coins
+
+					if (j==1 && k==2 && line[2]!='s'){
+						line[2]='s';
+						s[i]=[j,k];i++;
+					}
+
+					if(j==m.x*2-1 && k==m.y*4-1 && line[m.y*4-2]!='s'){
+						line[m.y*4-2]='s';
+						s[i]=[j,k];i++;
+					}
+					if(j==m.x*2-1 && k==2 && line[2]!='s' ){
+						line[2]='s';
+						s[i]=[j,k];i++;
+					}
+					if(j==1 && k==m.y*4-1 && line[m.y*4-2]!='s'){
+						line[m.y*4-2]='s';
+						s[i]=[j,k];i++;
+					}
+				}
+
+
+			if (0 == j) line[1]= line[2]= line[3]= ' ';
+			if (m.x*2-1 == j) line[4*m.y]= ' ';
+			text.push(line.join('')+'\r\n');	
+		
+			
+			
+		}
+
+
+		//document.getElementById('g').innerHTML+=checkH(m,(s[0][0]-1)/2, (s[0][1]+2)/4-1 ,(s[1][1]-2)/4-1 );
+
+		// Boucle pour génerer la matrice cout initiale
+		for(var i=0;i<s.length;i++){
+				graph[i]=[];
+				for(var j=0;j<s.length;j++){
+					if(i==j) {
+						graph[i][j]=0;
+					}
+					else if(s[i][0]==s[j][0]){
+						if( s[i][1]<s[j][1] && !checkH(m,(s[i][0]-1)/2, (s[i][1]+2)/4-1 ,(s[j][1]-2)/4-1) ){
+							graph[i][j]=Math.abs(s[i][1]-s[j][1])/4;
+						}
+						else if( s[i][1]>s[j][1] && !checkH(m,(s[i][0]-1)/2, (s[i][1]-2)/4-1 ,(s[j][1]+2)/4-1)){
+							graph[i][j]=Math.abs(s[i][1]-s[j][1])/4;
+						}
+						else
+							graph[i][j]=Infinity;
+					}
+					else if(s[i][1]==s[j][1]) {	
+						if(s[i][0]< s[j][0] && !checkV(m,Math.floor(s[i][1]/4), (s[i][0]+1)/2-1 ,(s[j][0]-1)/2-1))
+							graph[i][j]=Math.abs(s[i][0]-s[j][0])/2;
+						else if(s[i][0]>s[j][0] && !checkV(m,Math.floor(s[i][1]/4), (s[i][0]-1)/2-1 ,(s[j][0]+1)/2-1))
+							graph[i][j]=Math.abs(s[i][0]-s[j][0])/2;
+						else
+							graph[i][j]=Infinity;
+					}
+					else
+						graph[i][j]=Infinity;
+				}	
+			}
+
+		// A extraire via la variable graph[][]
+		
+		/*document.write("<TABLE BORDER=ON>");
+		document.write("<TH>Cout0</TH>");
+		for(i=0; i<s.length; i++) {
+			document.write("<TH>",s[i],"</TH>");
+		}
+		for(i=0; i<s.length; i++) {
+			document.write("<TR><TH>",s[i],"</TH>");
+		for(j=0; j<s.length; j++){
+			if(graph[i][j]!=Infinity)
+				document.write("<TD>",graph[i][j],"</TD>");
+			else
+				document.write("<TD>*</TD>");
+		}
+			document.write("</TR>");
+		}
+		document.write("</TABLE>");*/
+
+		var c=0;
+		document.getElementById('s').innerHTML+='Tableau Sommets <br>';
+		for(var i=0;i<s.length;i++){
+			if(s[i][0]>c){
+				document.getElementById('s').innerHTML+='<br>';
+				c=s[i][0];
+			}
+			document.getElementById('s').innerHTML+='('+s[i]+')'+'|';
+
+		}
+
+		
+		
+		return {s: s, graph: graph, text: text}
+		// return text.join('');
+
+	}
+	function showCost(costTable){
+		document.write("<br><br><br><center><TABLE BORDER=ON>");
+		document.write("<TH>Les Couts</TH>");
+		for(var i=0; i<costTable.length; i++) {
+			document.write("<TH>",(maze.s[i][0]-1)/2,",",Math.floor(maze.s[i][1]/4),"</TH>");
+		}
+		for(var i=0; i<costTable.length; i++) {
+			document.write("<TR><TH>Iteration ",i,"</TH>");
+		for(var j=0; j<costTable.length; j++){
+			if(costTable[i][j]!=Infinity){
+				document.write("<TD>",costTable[i][j],"</TD>");
+			}
+			else{
+				document.write("<TD>*</TD>");
+			}
+		}
+			document.write("</TR>");
+		}
+		document.write("</TABLE></center>");
+	}
+	function Djikstra(maze){
+		var d=[],
+			prev=[],
+			prevS,
+			currentPos=[],
+			currentS=-1,
+			s=maze.s,
+			graph=maze.graph,
+			costTable=[],
+			text=maze.text;
+		var sReformed=s.slice();
+		for(var i=0;i<s.length;i++){
+			if(graph[0][i]==Infinity){
+				prev[i]='-';
+			}
+			else{
+				prev[i]=s[0];
+			}
+		}
+		//Initialisation
+		d=graph[0];
+		costTable.push(d.slice());
+		sReformed[0]="-";
+		currentPos.push(s[0]);
+	
+		//Boucle principale
+		while( !checkVoid(sReformed) && currentS!=s[s.length-1]){
+
+			//Trouve le prochain noeud a visiter
+			currentS=Trouve_min(sReformed,d,text);
+			currentPos.push(currentS);
+			var currentIndex = sReformed.indexOf(currentS);
+			sReformed[currentIndex]='-'	;
+
+			//Boucle de mise à jour des couts 
+			for(var i=0;i<s.length;i++){
+				maj(d,s,graph,prev,currentIndex,i);
+			}
+			//Mettre en memoire La table des couts
+			costTable.push(d.slice());
+			
+			//Path Drawing entre Prochain-Précedent Sommet
+			prevS=prev[currentIndex];
+			/*document.write("De: "+prevS+" => ");
+			document.write(currentS+"|");*/
+			//pathDraw(maze,text,currentS,prevS);
+			
+		}	
+			//document.write("<br>");
+			var path=pathFind(s,prev);
+			//document.write(path);
+			pathDraw(maze,text,s,path);
+
+			
+
+			return{path :path, currentPos :currentPos, costTable :costTable}
+	}
+	function showPath(path){
+		var prevj,
+			prevk;
+		for(var i=path.length-1;i>-1;i--){
+			var j=(path[i][0]-1)/2,
+				k=Math.floor(path[i][1]/4);
+			if(i==path.length-1){
+				document.getElementById(j+''+k).bgColor = '#00FF00';
+			}
+			else {
+				if(j==prevj){
+					if(prevk<k){
+						while(prevk<=k){
+							document.getElementById(j+''+prevk).bgColor = '#00FF00';
+							prevk++;
+						}
+					}
+					else if(prevk>k){
+						while(prevk>=k){	
+							document.getElementById(j+''+prevk).bgColor = '#00FF00';
+							prevk--;
+						}
+					}
+				}
+				else if(k==prevk){
+					if(prevj<j){
+						while(prevj<=j){
+							document.getElementById(prevj+''+k).bgColor = '#00FF00';
+							prevj++;
+						}
+					}
+					else if(prevj>j){
+						while(prevj>=j){
+							document.getElementById(prevj+''+k).bgColor = '#00FF00';
+							prevj--;
+						}
+					}
+				}
+				else{
+					document.write("I'm lost");
+				}
+			}
+				prevj=j;
+				prevk=k;
+			
+		}
+	}
+	function toTable(x,y,maze,paths){
+		var text=maze.text;
+			//path=paths.path,
+			//currentPos=paths.currentPos;
+		document.write("<center><TABLE>");
+		document.write("<TH></TH>");
+		for(var k=0; k<y; k++) {
+			document.write("<TH>",k,"</TH>");
+		}
+		for(var j=0; j<x; j++) {
+			document.write("<TR><TH>",j,"</TH>");
+			for(k=0; k<y; k++){
+				document.write("<TD id=",j,k,"></TD>");
+					if(text[2*j+1].charAt((k+1)*4)=='|'){
+						document.getElementById(j+''+k).style.borderRight='5px solid black';
+					}
+					if(k==0 || text[2*j+1].charAt((k)*4)=='|'){
+						document.getElementById(j+''+k).style.borderLeft='5px solid black';
+					}
+					if(j==0||text[2*j].charAt(k*4+2)=='-'){
+							document.getElementById(j+''+k).style.borderTop='5px solid black';
+					}
+					if(j==x-1||text[2*j+2].charAt(k*4+2)=='-'){
+						document.getElementById(j+''+k).style.borderBottom='5px solid black';
+					}
+			}
+			document.write("</TR>");
+		}
+		document.write("</TABLE></center>");
+			
+	}
+	function showDijkstra(x,y,maze,paths){
+		var text=maze.text,
+			currentPos=paths.currentPos;
+		var j,
+			k;
+		for(var i=0;i<currentPos.length;i++){
+			j=(currentPos[i][0]-1)/2;
+			k=Math.floor(currentPos[i][1]/4);
+			document.getElementById(j+''+k).bgColor="#FFFF00";
+			document.getElementById(j+''+k).innerHTML=i;
+			}
+	}
+	function pathFind(s,prev){
+		var path= [],
+			sommet=s[s.length-1],
+			i;
+			while(sommet!=s[0]){
+				path.push(sommet);
+				i=s.indexOf(sommet);
+				sommet=prev[i];
+			}
+			path.push(s[0]);
+		return path;
+	}
+	function pathDraw(maze,text,s,path){
+	
+
+		for(var i=0;i<path.length-1;i++){
+			//Gestion des Chemins Horizontaux
+			if(path[i][0]==path[i+1][0]){
+				var j=path[i][0];
+				if(path[i][1]<path[i+1][1]){
+					var k = path[i][1];
+					while(k<=path[i+1][1]){
+						if(k%4==2){
+							text[j]=text[j].replaceAt(k,'*');
+							document.getElementById('out').innerHTML= maze.text.join(''); 
+						}
+						k++;
+					}
+				}
+				else if(path[i+1][1]<path[i][1]){
+					var k = path[i+1][1];
+					while(k<=path[i][1]){
+						if(k%4==2){
+							text[j]=text[j].replaceAt(k,'*');
+							document.getElementById('out').innerHTML= maze.text.join(''); 
+						}
+						k++;
+					}
+				}
+			}
+			//Gestion des Chemins Verticaux
+			if(path[i][1]==path[i+1][1]){
+				var k=path[i][1];
+				if(path[i][0]<path[i+1][0]+1){
+					var j = path[i][0];
+					while(j<=path[i+1][0]){
+						if(j%2==1){
+							text[j]=text[j].replaceAt(k,'*');
+							document.getElementById('out').innerHTML= maze.text.join(''); 
+						}
+						j++;
+					}
+				}
+				else if(path[i+1][0]<path[i][0]+1){
+					var j = path[i+1][0];
+					while(j<=path[i][0]){
+						if(j%2==1){
+							text[j]=text[j].replaceAt(k,'*');
+							document.getElementById('out').innerHTML= maze.text.join(''); 
+						}
+						j++;
+					}
+				}
+			} 	
+		}	
+	}
+	function checkVoid(tab){
+		for(var i=0;i<tab.length;i++){
+			if(tab[i]!="-"){
+				return false;
+			}
+		}
+		return true;	
+	}
+	function Trouve_min(sReformed,d,text){
+		var min=Infinity;
+		var sommet=-1;
+		for(i=1;i<sReformed.length;i++){
+			if(sReformed[i]!='-' && d[i]<min){
+				min=d[i];
+				sommet=sReformed[i];
+			}
+		}
+		return sommet;
+	}
+	function maj(d,s,graph,prev,i1,i2){
+
+		if( d[i2] > d[i1]+graph[i1][i2]){
+			d[i2]=d[i1]+graph[i1][i2];
+			prev[i2]=s[i1];
+			//document.write("("+prev[i2]+")");
+		}
+	}
+
+	function checkV(m,c,ld,la){
+		if(ld<la){
+			for(var i=ld;i<la+1;i++){
+				if(!m.verti[i][c]){
+					return true;
+					
+				}
+			}
+		}
+		else{
+			for(var i=la;i<ld+1;i++){
+				if(!m.verti[i][c]){
+					return true;
+					
+				}
+			}
+		}
+		return false;
+	}
+
+	function checkH(m,l,cd,ca){
+		
+		if(cd==ca){
+			if(m.horiz[l][cd])
+				return false;
+			else
+				return true;
+		}
+		else if(cd<ca){
+			for(var j=cd;j<ca+1;j++){
+				if(!m.horiz[l][j]){
+					return true;
+				}
+			}
+		}
+		else{
+			for(var j=ca;j<cd+1;j++){
+				if(!m.horiz[l][j]){
+					return true;
+					
+				}
+			}
+		}
+		return false;
+	}
+
+	function Reset(){
+		for(var j=0;j<mazeGenerated.x;j++){
+			for(var k=0;k<mazeGenerated.y;k++){
+				document.getElementById(j+''+k).bgColor="#FFFFFF";
+				document.getElementById(j+''+k).innerHTML='';
+			}
+		}
+	}
+	String.prototype.replaceAt=function(index, replacement) {
+    return this.substr(0, index) + replacement+ this.substr(index + replacement.length);
+	}
+	var x= parseInt(prompt("Veuillez Saisir le nombre de Lignes"));
+	var y = parseInt(prompt("Veuillez Saisir le nombre de Colonnes"));
+	var mazeGenerated=maze(x,y);
+	var maze= display(mazeGenerated);
+	document.getElementById('out').innerHTML= maze.text.join(''); 
+	var paths=Djikstra(maze);
+	toTable(mazeGenerated.x,mazeGenerated.y,maze,paths);
+	showCost(paths.costTable);
+	//showDijkstra(mazeGenerated.x,mazeGenerated.y,maze,paths);
+	/*document.getElementById('g').innerHTML+=text[1]+'<br>';
+		document.getElementById('g').innerHTML+=text[1].charAt(4);
+		text[1]=text[1].replaceAt(5,'');*/
+
+	/*if(curS[0]==prevS[0]){
+			var j=curS[0];
+			for(var k=0;k<curS[1];k++){
+				if(k%4==0){
+					text[j]=text[j].replaceAt(k,'*');
+					document.getElementById('out').innerHTML= maze.text.join(''); 
+				}
+			}
+		}
+		if(curS[1]==prevS[1]){
+			var k=curS[1];
+			for(var j=0;j<curS[1];j++){
+				if(j%2==0){
+					text[j]=text[j].replaceAt(k,'*');
+				}
+			}
+		}*/
+
+		/*for(var j=0; j<x; j++) {
+				for(k=0; k<y; k++){
+					document.getElementById(j+''+k).bgColor = '#00FF00';
+			}
+		}*/
+			/*document.getElementById(12).style.borderTop='1px solid black';
+			document.getElementById(12).style.borderRight='1px solid black';
+			document.getElementById(5+''+1).bgColor = '#00FF00';*/
+
+		
+	</script>
+</html>
